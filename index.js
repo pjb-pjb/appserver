@@ -25,11 +25,11 @@ for (var val in fileName) {
                     });
                 }).then(function () {
                     exec('git commit -m "123"',function(err,data){
-                        
+                        console.log(2);
                     });
                 }).then(function () {
                     exec("git pull",function(err,data){
-                        
+                        console.log(3);
                     });
                 }).then(function () {
                     exec("git push",function(err,data){
