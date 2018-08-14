@@ -1,5 +1,3 @@
-
-
 <?php
 /**
  * FecShop file.
