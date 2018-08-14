@@ -29,6 +29,7 @@ class AddressController extends AppserverTokenController
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
             return [];
         }
+        
         $a = 1;
         $code = Yii::$service->helper->appserver->status_success;
         $data = [
