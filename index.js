@@ -33,6 +33,7 @@ for (var val in fileName) {
                     });
                 }).then(function () {
                     exec("git push",function(err,data){
+                        console.log(1);
                     });
                 })
                 return function(){
