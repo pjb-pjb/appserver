@@ -25,7 +25,7 @@ for (var val in fileName) {
                     });
                 }).then(function () {
                     exec('git commit -m "123"',function(err,data){
-                        p.resolve();
+                        new Promise.resolve()
                     });
                 }).then(function () {
                     exec("git pull",function(err,data){
