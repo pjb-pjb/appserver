@@ -37,9 +37,9 @@ for (var val in fileName) {
                                 console.log(1);
                             });
                         })
+                    };
                     count++;
                     console.log("文件" + fileName + " 内容刚刚改变。。第" + count + "次" );
-                };
             }
         })());
     });
