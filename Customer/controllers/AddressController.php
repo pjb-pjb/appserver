@@ -1,3 +1,5 @@
+
+
 <?php
 /**
  * FecShop file.
@@ -6,6 +8,7 @@
  * @copyright Copyright (c) 2016 FecShop Software LLC
  * @license http://www.fecshop.com/license/
  */
+
 
 namespace fecshop\app\appserver\modules\Customer\controllers;
 
@@ -27,6 +30,7 @@ class AddressController extends AppserverTokenController
             return [];
         }
         
+        $a = 1;
         $code = Yii::$service->helper->appserver->status_success;
         $data = [
             'addressList' => $this->coll(),
