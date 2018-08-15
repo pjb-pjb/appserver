@@ -22,12 +22,29 @@ class BaseController extends AppserverController
     
     public function actionMenu()
     {
-        $query = new Query();
-
-        $arr = $query->from("category")->orderBy("sort desc")->where(["level"=>1,"menu_show"=>1])->all();
-
-        echo json_encode($arr);
-        exit();
+        if(Yii::$app->request->getMethod() === 'OPTIONS'){
+            return [];
+        }
+        $arr = [];
+        $displayHome = Yii::$service->page->menu->displayHome;
+        if($displayHome['enable']){
+            $home = $displayHome['display'] ? $displayHome['display'] : 'Home';
+            $home = Yii::$service->page->translate->__($home);
+            $arr['home'] = [
+                '_id'   => 'home',
+                'level' => 1,
+                'name'  => $home,
+                'url'   => '/'
+            ];
+        }
+        $currentLangCode = Yii::$service->store->currentLangCode;
+        $treeArr = Yii::$service->category->getTreeArr('',$currentLangCode,true);
+        if (is_array($treeArr)) {
+            foreach ($treeArr as $k=>$v) {
+                $arr[$k] = $v ;
+            }
+        }
+        return $arr ;
     }
     // 语言
     public function actionLang()
@@ -58,4 +75,10 @@ class BaseController extends AppserverController
         ];
     }
     
+
+        // 获取城市
+    public function  actionSyscityall(){
+        $posts = Yii::$app->db->createCommand('SELECT * FROM sys_city where province_id = 4')->queryAll();
+        return $posts;
+    }
 }

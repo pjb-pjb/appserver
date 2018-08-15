@@ -11,6 +11,8 @@ namespace fecshop\app\appserver\modules\Catalogsearch\controllers;
 
 use fecshop\app\appserver\modules\AppserverController;
 use Yii;
+use yii\mongodb\Query;
+use yii\data\Pagination;
  
 /**
  * @author Terry Zhao <2358269014@qq.com>
@@ -46,29 +48,44 @@ class IndexController extends AppserverController
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
             return [];
         }
-        $this->getNumPerPage();
-        //echo Yii::$service->page->translate->__('fecshop,{username}', ['username' => 'terry']);
-        $this->initSearch();
-        // change current layout File.
-        //Yii::$service->page->theme->layoutFile = 'home.php';
 
-        $productCollInfo = $this->getSearchProductColl();
-        $products = $productCollInfo['coll'];
-        $this->_productCount = $productCollInfo['count'];
-        //echo $this->_productCount;
-        $data = [
-            'searchText'       => $this->_searchText,
-            'searchCount'       => $this->_productCount,
-            'products'         => $products,
-            //'query_item'       => $this->getQueryItem(),
-            'refine_by_info'   => $this->getRefineByInfo(),
-            'filter_info'      => $this->getFilterInfo(),
-            'filter_price'     => $this->getFilterPrice(),
-        ];
-        $code = Yii::$service->helper->appserver->status_success;
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $query = new Query;
+
+        $tot=$query->select(["_id","price","special_price",'name.name_zh',"image.main.image"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->count();
         
-        return $reponseData;
+                // 实例化分页对象
+        $pagination = new Pagination([
+                   'defaultPageSize' => 10,
+                   'totalCount' => $tot,
+               ]);
+        
+        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main.image"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($pagination->offset)->limit($pagination->limit)->all();
+
+
+        foreach ($rows as $key => &$value) {
+
+            // 生成商品图片
+            $value['image']="http://img.chengzhanghao.com:81/media/catalog/product/{$value[image]}";
+            # code...
+
+            // 获取商品描述
+            $datas=Yii::$app->mongodb->getCollection('product_flat')->findOne(['_id'=>$value['_id']]);
+
+            $value['description']=$datas['meta_description']['meta_description_zh'];
+            $value['shop_id']=$datas['shop_id'];
+            if ($value['shop_id']) {
+                # code...
+                // 获取商家信息
+
+                $value['shop']= Yii::$app->db->createCommand("select shop_id,shop_name,shop_logo from shop where shop_id=$value[shop_id]")->queryOne();
+
+            }
+
+        }
+
+
+        return $rows;
+
     }
     
     

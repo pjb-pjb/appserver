@@ -561,7 +561,7 @@ class CategoryController extends AppserverController
                 # code...
                 // 获取商家信息
 
-                $value['shop']= Yii::$app->db->createCommand("select * from shop where shop_id=$value[shop_id]")->queryOne();
+                $value['shop']= Yii::$app->db->createCommand("select shop_id,shop_name,shop_logo from shop where shop_id=$value[shop_id]")->queryOne();
 
             }
 
