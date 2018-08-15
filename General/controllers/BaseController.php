@@ -11,7 +11,8 @@ namespace fecshop\app\appserver\modules\General\controllers;
 
 use fecshop\app\appserver\modules\AppserverController;
 use Yii;
- 
+use yii\db\Query;
+
 /**
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0 
