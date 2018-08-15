@@ -1,0 +1,49 @@
+public function actionVendor()
+    {
+        return 1;
+    }
+    public function  actionSyscity(){
+        $posts = Yii::$app->db->createCommand('SELECT * FROM sys_city where province_id = 4')->queryAll();
+        return $posts;
+    }
+    public function  actionSyscounty(){
+        $posts = Yii::$app->db->createCommand('SELECT * FROM sys_city')->queryAll();
+        return $posts;
+    }
+    public function actionCustomer()
+    {
+
+      $request = Yii::$app->request;
+      $city = $request->get('city');
+      $query = new Query;
+      $query->from('customer_info')
+        ->where(['shi'=>$city]);
+      $rows = $query->all();
+      return $rows;
+    }
+
+    public function actionIndustry(){
+      $posts = Yii::$app->db->createCommand('SELECT * FROM article')->queryAll();
+      return $posts;
+    }
+    // 所有城市名
+    public function actionSyscityall(){
+      $posts = Yii::$app->db->createCommand('SELECT * FROM sys_city')->queryAll();
+      return $posts;
+    }
+    // 首页的banner
+    public function actionBanner(){
+       $posts = Yii::$app->db->createCommand('SELECT * FROM banner where type=1 order by sort desc')->queryAll();
+
+       foreach ($posts as $key => &$value) {
+         
+
+        $value['img']="http://img.chengzhanghao.com:81/media/".$value['img'];
+
+       }
+       return $posts;
+    }
+
+    public function actionLogistics(){
+        return 4;
+    }
