@@ -51,28 +51,37 @@ class IndexController extends AppserverController
 
         $query = new Query;
 
-        $tot=$query->select(["_id","price","special_price",'name.name_zh',"image.main.image"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->count();
         
-                // 实例化分页对象
-        $pagination = new Pagination([
-                   'defaultPageSize' => 10,
-                   'totalCount' => $tot,
-               ]);
         
-        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main.image"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($pagination->offset)->limit($pagination->limit)->all();
+        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($_GET[page])->limit(10)->all();
 
 
         foreach ($rows as $key => &$value) {
 
             // 生成商品图片
-            $value['image']="http://img.chengzhanghao.com:81/media/catalog/product/{$value[image]}";
+            // $value['image']="http://img.chengzhanghao.com:81/media/catalog/product/{$value[image][main]}";
             # code...
 
             // 获取商品描述
             $datas=Yii::$app->mongodb->getCollection('product_flat')->findOne(['_id'=>$value['_id']]);
-
+						
+						//好评
+						$praises = $query->from("product_flat")->where(["rate_star"=>"4","rate_star"=>"5"])->count();
+						//所有
+						$all = $query->from("product_flat")->where([])->count();
+						$value["praise"] = floor(($praises/$all)*100); 
             $value['description']=$datas['meta_description']['meta_description_zh'];
             $value['shop_id']=$datas['shop_id'];
+						
+						//本月时间戳
+						$beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
+						$endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
+						
+						//月销售连量
+						$volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$value[_id]['$oid']' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+						
+						$value[volume] = $volume[nums];
+						
             if ($value['shop_id']) {
                 # code...
                 // 获取商家信息

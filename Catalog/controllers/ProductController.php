@@ -217,8 +217,25 @@ class ProductController extends AppserverController
             ]
         ];
         $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data,$message);
-
-            
+				
+				//本月时间戳
+				$beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
+				$endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
+				//月销量
+				$volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$_GET[product_id]' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+								
+				$reponseData[data][product][volume] = $volume[nums];
+				
+				//优惠卷
+				$time = time();
+				$sql ="select * from sales_coupon where shop_id='{$reponseData[data][product][shop_id]}' and status=0 and (goods='0' or goods like '%$_GET[product_id]%') and expiration_date>$time";
+				$coupon = Yii::$app->db->createCommand($sql)->queryAll();
+				
+				foreach($coupon as &$v){
+					$v["gqsj"] = date("Y.m.d",$v["expiration_date"]);
+				}
+				$reponseData[data][coupon] = $coupon;
+				
         return $reponseData;
     }
     
