@@ -81,10 +81,4 @@ class BaseController extends AppserverController
         return $posts;
     }
     
-
-        // 获取城市
-    public function  actionSyscityall(){
-        $posts = Yii::$app->db->createCommand('SELECT * FROM sys_city where province_id = 4')->queryAll();
-        return $posts;
-    }
 }

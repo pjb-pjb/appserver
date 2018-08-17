@@ -53,7 +53,7 @@ class IndexController extends AppserverController
 
         
         
-        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($_GET[page])->limit(10)->all();
+        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($_GET[page]*10)->limit(10)->all();
 
 
         foreach ($rows as $key => &$value) {
@@ -66,10 +66,14 @@ class IndexController extends AppserverController
             $datas=Yii::$app->mongodb->getCollection('product_flat')->findOne(['_id'=>$value['_id']]);
 						
 						//好评
-						$praises = $query->from("product_flat")->where(["rate_star"=>"4","rate_star"=>"5"])->count();
+						$praises = $query->from("review")->where(["rate_star"=>"4","rate_star"=>"5","product_id"=>$value["_id"]])->count();
 						//所有
-						$all = $query->from("product_flat")->where([])->count();
-						$value["praise"] = floor(($praises/$all)*100); 
+						$all = $query->from("review")->where(["product_id"=>$value["_id"]])->count();
+						if($all>0){
+							$value["praise"] = floor(($praises/$all)*100); 
+						}else{
+							$value["praise"] = -1;
+						}
             $value['description']=$datas['meta_description']['meta_description_zh'];
             $value['shop_id']=$datas['shop_id'];
 						

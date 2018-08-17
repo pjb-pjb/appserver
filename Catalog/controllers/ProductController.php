@@ -228,7 +228,7 @@ class ProductController extends AppserverController
 				
 				//优惠卷
 				$time = time();
-				$sql ="select * from sales_coupon where shop_id='{$reponseData[data][product][shop_id]}' and status=0 and (goods='0' or goods like '%$_GET[product_id]%') and expiration_date>$time";
+				$sql ="select s1.*,s2.customer_id from sales_coupon s1 left join sales_coupon_usage s2 on s1.coupon_id=s2.coupon_id where s1.shop_id='{$reponseData[data][product][shop_id]}' and s1.status=0 and (s1.goods='0' or s1.goods like '%$_GET[product_id]%') and s1.expiration_date>$time";
 				$coupon = Yii::$app->db->createCommand($sql)->queryAll();
 				
 				foreach($coupon as &$v){
@@ -239,6 +239,29 @@ class ProductController extends AppserverController
         return $reponseData;
     }
     
+		public function actionGetcoupon(){
+			
+			$req = Yii::$app->request;
+			
+			$get = $req->get();
+			
+			$arr=[
+				"coupon_id"=>$get[coupon_id],
+				"customer_id"=>$get[customer_id],
+			];
+			$res = Yii::$app->db->createCommand("select coupon_id from sales_coupon_usage where coupon_id=$get[coupon_id] and customer_id=$get[customer_id]")->queryOne();
+			if($res == ""){
+				$res1 = Yii::$app->db->createCommand()->insert("sales_coupon_usage",$arr)->execute();
+			}
+			if($res1==1){
+				echo "ok";
+			}else
+			{
+				echo "err";
+			}
+			exit();
+		}
+		
     public function getTierPrice(){
         $i = 1;
         $pre_qty = 1;

@@ -152,7 +152,29 @@ class CategoryController extends AppserverController
             'page_count'        => $page_count,
         ];
         $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-        
+				
+				// return $reponseData['data']['products'];
+        $query = new Query();
+				foreach($reponseData['data']['products'] as &$value){
+					//好评
+					$praises = $query->from("review")->where(["rate_star"=>"4","rate_star"=>"5","product_id"=>$value["_id"]])->count();
+					//所有
+					$all = $query->from("review")->where(["product_id"=>$value["_id"]])->count();
+					if($all>0){
+						$value["praise"] = floor(($praises/$all)*100); 
+					}else{
+						$value["praise"] = -1;
+					}					
+					//本月时间戳
+					$beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
+					$endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
+					
+					//月销售连量
+					$volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$value[_id]['$oid']' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+					
+					$value[volume] = $volume[nums];
+				}
+				
         return $reponseData;
 
             
