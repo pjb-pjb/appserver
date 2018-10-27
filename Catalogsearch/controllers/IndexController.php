@@ -42,7 +42,8 @@ class IndexController extends AppserverController
     protected $_filter_attr;
     protected $_numPerPageVal;
     protected $sp = '---';
-
+		
+		// 搜索相关的方法 
     public function actionIndex()
     {
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
@@ -53,7 +54,7 @@ class IndexController extends AppserverController
 
         
         
-        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main"])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($_GET[page]*10)->limit(10)->all();
+        $rows=$query->select(["_id","price","special_price",'name.name_zh',"image.main","deposit",'type'])->from('product_flat')->where(['name.name_zh'=>['$regex'=>"$_GET[q]"]])->offset($_GET[page]*10)->limit(10)->all();
 
 
         foreach ($rows as $key => &$value) {
@@ -66,11 +67,27 @@ class IndexController extends AppserverController
             $datas=Yii::$app->mongodb->getCollection('product_flat')->findOne(['_id'=>$value['_id']]);
 						
 						//好评
-						$praises = $query->from("review")->where(["rate_star"=>"4","rate_star"=>"5","product_id"=>$value["_id"]])->count();
-						//所有
+						$wu = $query->from("review")->where(["rate_star"=>"5","product_id"=>$value["_id"]])->count();
+
+						$si = $query->from("review")->where(["rate_star"=>"4","product_id"=>$value["_id"]])->count();
+						
+						$san = $query->from("review")->where(["rate_star"=>"3","product_id"=>$value["_id"]])->count();
+
+						$er = $query->from("review")->where(["rate_star"=>"2","product_id"=>$value["_id"]])->count();
+						
+						$yi = $query->from("review")->where(["rate_star"=>"1","product_id"=>$value["_id"]])->count();
+						
+						// 计算总分
+						
+						$zong = $wu*5+$si*4+$san*3+$er*2+$yi*1;
+
+						//所有的评论个数
 						$all = $query->from("review")->where(["product_id"=>$value["_id"]])->count();
+						// 所以的评论
+						$value['all']=$all;
+						
 						if($all>0){
-							$value["praise"] = floor(($praises/$all)*100); 
+							$value["praise"] = number_format($zong/$all,2);
 						}else{
 							$value["praise"] = -1;
 						}
@@ -87,8 +104,6 @@ class IndexController extends AppserverController
 						$value[volume] = $volume[nums];
 						
             if ($value['shop_id']) {
-                # code...
-                // 获取商家信息
 
                 $value['shop']= Yii::$app->db->createCommand("select shop_id,shop_name,shop_logo from shop where shop_id=$value[shop_id]")->queryOne();
 

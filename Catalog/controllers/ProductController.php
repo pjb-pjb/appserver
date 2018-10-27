@@ -187,6 +187,9 @@ class ProductController extends AppserverController
         $code = Yii::$service->helper->appserver->status_success;
         
         $datas=Yii::$app->mongodb->getCollection('product_flat')->findOne(['_id'=>(string)$this->_product['_id']]);
+		
+		$shop = Yii::$app->db->createCommand("select shop_name,uid from shop where shop_id=$datas[shop_id]")->queryOne();
+
         $data = [
             'product' => [
                 // 'groupAttrArr'              => $groupAttrArr,
@@ -197,6 +200,8 @@ class ProductController extends AppserverController
                 'img'                       => $this->_product['image'],
                 'price'                     => $this->_product['price'],
                 'special_price'             => $this->_product['special_price'],
+				"shop_name"					=> $shop['shop_name'],
+				"uid"					=> $shop['uid'],
                 // 'thumbnail_img'             => $thumbnail_img,
                 'productReview'             => $productReview,
                 'custom_option_showImg_attr'=> $custom_option_showImg_attr,
@@ -210,6 +215,11 @@ class ProductController extends AppserverController
                 'options'                   => $this->getSameSpuInfo(),
                 'custom_option'             => $custom_option,
                 'shop_id'                   => $datas['shop_id'],
+								'volume'                   => $datas['volume'],
+
+								"deposit"										=> number_format($datas['deposit'],2),
+								"goods_type"										=> $datas['type'],
+
                 'description'               => $this->_product['short_description']['short_description_zh'],
                 // 'description'               => Yii::$service->store->getStoreAttrVal($this->_product['description'], 'description'),
                 '_id'                       => (string)$this->_product['_id'],
@@ -217,18 +227,21 @@ class ProductController extends AppserverController
             ]
         ];
         $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data,$message);
+		
 				
 				//本月时间戳
-				$beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
-				$endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
-				//月销量
-				$volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$_GET[product_id]' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+// 				$beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
+// 				$endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
+// 				//月销量
+// 				$volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$_GET[product_id]' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
 								
-				$reponseData[data][product][volume] = $volume[nums];
+				// $reponseData[data][product][volume] = $volume[nums];
 				
 				//优惠卷
+				
 				$time = time();
-				$sql ="select s1.*,s2.customer_id from sales_coupon s1 left join sales_coupon_usage s2 on s1.coupon_id=s2.coupon_id where s1.shop_id='{$reponseData[data][product][shop_id]}' and s1.status=0 and (s1.goods='0' or s1.goods like '%$_GET[product_id]%') and s1.expiration_date>$time";
+				$sql ="select s1.* from sales_coupon s1 where s1.shop_id='{$reponseData[data][product][shop_id]}' and s1.status=0 and (s1.goods='0' or s1.goods like '%$_GET[product_id]%') and s1.expiration_date>$time ";				
+				
 				$coupon = Yii::$app->db->createCommand($sql)->queryAll();
 				
 				foreach($coupon as &$v){
@@ -238,6 +251,19 @@ class ProductController extends AppserverController
 				
         return $reponseData;
     }
+	
+	public function actionIndex1(){
+		$time = time();
+		// $sql ="select s1.* from sales_coupon s1 where s1.shop_id='{$reponseData[data][product][shop_id]}' and s1.status=0 and (s1.goods='0' or s1.goods like '%$_GET[product_id]%') and s1.expiration_date>$time ";				
+		$sql ="select s1.*,s2.customer_id from sales_coupon s1 left join sales_coupon_usage s2 on s1.coupon_id=s2.coupon_id and  s2.customer_id = $_GET[customer_id] where s1.shop_id='{$_GET[shop_id]}' and s1.status=0 and (s1.goods='0' or s1.goods like '%$_GET[product_id]%') and s1.expiration_date>$time ";
+		
+		$coupon = Yii::$app->db->createCommand($sql)->queryAll();
+		
+		foreach($coupon as &$v){
+			$v["gqsj"] = date("Y.m.d",$v["expiration_date"]);
+		}
+		return  $coupon;
+	}
     
 		public function actionGetcoupon(){
 			
@@ -748,7 +774,7 @@ class ProductController extends AppserverController
                     'sku', 'spu', 'name', 'image',
                     'price', 'special_price',
                     'special_from', 'special_to',
-                    'url_key', 'score',
+                    'url_key', 'score','volume'
                 ];
                 $filter['where'] = ['in', 'sku', $skus];
                 $products = Yii::$service->product->getProducts($filter);

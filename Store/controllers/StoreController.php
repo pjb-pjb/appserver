@@ -100,7 +100,30 @@ class StoreController extends AppserverController
 
         return $behaviors;
     }
-    
+    // 获取店铺信息详情
+		 
+		public function actionGetshopinfo(){
+			if(Yii::$app->request->getMethod() === 'OPTIONS'){
+					return [];
+			}
+			
+			// 获取店铺信息
+			$shop = Yii::$app->db->createCommand("select * from shop where shop_id=$_GET[id] ")->queryOne();
+			
+		
+
+			// 获取城市信息
+			$data['province'] = Yii::$app->db->createCommand("select * from sys_province where sys_province.province_id='$shop[province_id]' ")->queryOne();
+			$data['city'] = Yii::$app->db->createCommand("select * from sys_city where sys_city.city_id=$shop[city_id] ")->queryOne();
+
+			$data['district'] = Yii::$app->db->createCommand("select * from sys_district where sys_district.district_id=$shop[district_id] ")->queryOne();
+			
+			$data['shop'] = $shop;
+			return $data;
+
+		}
+		
+		// 店铺管理首页 
     public function actionIndex(){
         
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
@@ -116,57 +139,176 @@ class StoreController extends AppserverController
         // 获取店铺数据
         $reponseData['store'] = Yii::$app->db->createCommand("select * from shop where shop_id=$_GET[id]")->queryOne();
 
-        // 判断条件
-        $where['shop_id']=$_GET['id'];
-        // 获取店铺全部商品数据
-        $reponseData['shop'] = $query->from('product_flat')->where($where)->all();
-
-        // 获取促销商品数据
-
-        $reponseData['cuxiao'] = $query->from('product_flat')->where($where)->all();
-
         // 获取店铺商品评论
         // 需要后期修改
         // 结合商家shop_id 进行处理 未添加分也功能呢
         
-        $reponseData['review_count']['zong']=$query->from('review')->where(['status'=>1])->count();
-        $reponseData['review_count']['hao']=$query->from('review')->where(['status'=>1,'rate_star'=>['$gte'=>'4']])->count();
-        $reponseData['review_count']['cha']=$query->from('review')->where(['status'=>1,'rate_star'=>'1'])->count();
-        $reponseData['review_count']['zhong']=$reponseData['review_count']['zong']-$reponseData['review_count']['hao']-$reponseData['review_count']['cha'];
+        $reponseData['review_count']['zong']=$query->from('review')->where(['shop_id'=>$_GET['id']])->count();
+        $reponseData['review_count']['hao']=$query->from('review')->where(['shop_id'=>$_GET['id'],'rate_star'=>['$gte'=>'4']])->count();
+        $reponseData['review_count']['cha']=$query->from('review')->where(['shop_id'=>$_GET['id'],'rate_star'=>'1'])->count();
+        $reponseData['review_count']['zhong']=$query->from('review')->where(['shop_id'=>$_GET['id'],'rate_star'=>['$in'=>['3','2']]])->count();
+				
+				// 计算商家接单量、成交量、好评率
+				// 总订单量
+				$tot = Yii::$app->db->createCommand("select count(*) tot from sales_flat_order orders,sales_flat_order_item items where orders.shop_id=$_GET[id] and orders.order_id = items.order_id")->queryOne();
+				
+				// 成交量
+				$tots = Yii::$app->db->createCommand("select count(*) tot from sales_flat_order orders,sales_flat_order_item items where orders.shop_id=$_GET[id] and orders.order_id = items.order_id and orders.order_status>=1")->queryOne();
 
 
-            
-
-
-        return $reponseData;
-
-            
+				// 好评率
+				$where= [
+					'shop_id'=>$_GET['id']
+				];
+				$hao=$query->from('review')->where($where)->count();
+				
+				// 查询所有的订单量
+				
+				// 查询所有的好评订单
+				$arr["chengjiao"] = $tot['tot'];
+				
+				if($tot['tot']){
+					$chengjiaolv = $tot['tot']==0?$tots['tot']/$tot['tot']:0;
+					$arr['chengjiaolv'] = round(($chengjiaolv)*100);				
+					$arr['haopinlv'] = round(($hao['tot']/$tot['tot'])*100)>=100?100:round(($hao['tot']/$tot['tot'])*100);
+				}else{
+					$chengjiaolv =0;
+					$arr['chengjiaolv'] = 0;		
+					$arr['haopinlv'] = 0;
+				}
+				
+				
+				$reponseData['shop_count']=$arr;
+        return $reponseData;            
     }
+		
+		// 查看商城商品信息
+		
+		
+		public function actionGetgoods(){
+			
+			if(Yii::$app->request->getMethod() === 'OPTIONS'){
+					return [];
+			}
+			$query = new Query;
 
+			// 判断请求类型
+			$req = Yii::$app->request;
+
+			if(!empty($req->get())){
+				// 判断条件
+				$where['shop_id']=$_GET['id'];
+
+				$page = isset($_GET['page'])?$_GET['page']:0;
+				$start = $page*10;
+				// 获取店铺全部商品数据
+				$res = $query->from('product_flat')->where($where)->offset($start)->limit(10)->all();
+				if($res){
+					foreach($res as &$value){
+						//好评
+						$praises = $query->from("review")->where(["rate_star"=>"4","rate_star"=>"5","product_id"=>$value["_id"]])->count();
+						//所有
+						$all = $query->from("review")->where(["product_id"=>$value["_id"]])->count();
+						if($all>0){
+							$value["praise"] = floor(($praises/$all)*100); 
+						}else{
+							$value["praise"] = -1;
+						}					
+						// 销量
+						$value['volume']=$value['volume']?$value['volume']:0;
+					}
+				}
+				$data = [
+					'code' => 200,
+					'info' => '请求成功',
+					'data' => $res,
+				];
+			}else{
+				$data = [
+					'code' => 400,
+					'info' => '非法数据请求',
+				];
+			}
+			
+			return $data;
+		}
+		
+		// 查看商城的促销信息
+		
+		public function actionGetcuxiao(){
+			
+			if(Yii::$app->request->getMethod() === 'OPTIONS'){
+					return [];
+			}
+			$req = Yii::$app->request;
+      $query = new Query;
+			// 判断请求类型
+			
+			if(!empty($req->get())){
+				// 判断条件
+				$where['shop_id']="$_GET[id]";
+				$page = isset($_GET['page'])?$_GET['page']:0;
+				$start = $page*10;
+				// 获取店铺全部商品数据
+				$res = $query->from('product_flat')->where($where)->offset($start)->limit(10)->all();
+				
+			
+				if($res){
+					foreach($res as &$value){
+						//好评
+						$praises = $query->from("review")->where(["rate_star"=>"4","rate_star"=>"5","product_id"=>$value["_id"]])->count();
+						//所有
+						$all = $query->from("review")->where(["product_id"=>$value["_id"]])->count();
+						if($all>0){
+							$value["praise"] = floor(($praises/$all)*100); 
+						}else{
+							$value["praise"] = -1;
+						}					
+						// 销量
+						$value['volume']=$value['volume']?$value['volume']:0;
+					}
+				}
+				$data = [
+					'code' => 200,
+					'info' => '请求成功',
+					'data' => $res,
+				];
+			}else{
+				$data = [
+					'code' => 400,
+					'info' => '非法数据请求',
+				];
+			}
+			
+			return $data;
+		}
+		
+		// 查看商城评论
     public function actionGetreview(){
         // 获取好评、中评、差评和全部数据  
         // 需要结合商家的ID 未完成
         // 获取数据
         $query = new Query;
+				$page = isset($_GET['page'])?$_GET['page']:0;
+				$start = $page*10;
+				$shop_id = $_GET['id'];
         
         switch ($_GET['review_type']) {
             case 'hao':
-                $review=$query->from('review')->where(['status'=>1,'rate_star'=>['$gte'=>'4']])->all();
+                $review=$query->from('review')->where(['shop_id'=> "$shop_id" ,'rate_star'=>['$gte'=>'4']])->offset($start)->limit(10)->all();
                 break;
             case 'zhong':
-                $review=$query->from('review')->where(['status'=>1,'rate_star'=>'2'])->all();
-                $review2=$query->from('review')->where(['status'=>1,'rate_star'=>'3'])->all();
-                $review=array_merge($review,$review2);
+                $review=$query->from('review')->where(['shop_id'=> "$shop_id" ,'rate_star'=>['$in'=>['3','2']]])->offset($start)->limit(10)->all();
                 break;
             case 'cha':
-                $review=$query->from('review')->where(['status'=>1,'rate_star'=>'1'])->all();
+                $review=$query->from('review')->where(['shop_id'=> "$shop_id" ,'rate_star'=>'1'])->offset($start)->limit(10)->all();
                 break;
             
             default:
-                $review=$query->from('review')->where(['status'=>1])->all();
+                $review=$query->from('review')->where(['shop_id'=> "$shop_id" ])->offset($start)->limit(10)->all();
                 break;
         }
-
+				
         // 对评论的数据进行处理
         foreach ($review as $key => &$value) {
 
@@ -175,16 +317,41 @@ class StoreController extends AppserverController
 
             // 查询用户信息
 
-            $value['user']=Yii::$app->db->createCommand("select firstname,headImg from customer ")->queryOne();
-
-
+            $value['user']=Yii::$app->db->createCommand("select firstname,headImg from customer where id = $value[user_id]")->queryOne();            			
+						$value['goods']=Yii::$app->mongodb->getCollection('product_flat')->findOne(['_id'=>$value['product_id']]);
         }
         $reponseData['review'] = $review;
 
         return $reponseData;
 
     }
-    
+    // 查看商城推荐
+		public function actionRecommend(){
+			// 判断数据请求类型
+				if(Yii::$app->request->getMethod() === 'OPTIONS'){
+						return [];
+				}
+			
+			// 查看所有分类数据
+			$query = new Query;
+			
+			// 获取推荐数据
+			$data['recommend'] = $query->from('product_flat')->limit(4)->all();
+			
+			// 顶级分类数据
+			$data['category'] = $query->from('category')->orderBy("sort desc")->where(['parent_id'=>'0'])->all();
+			
+			foreach($data['category'] as &$value){
+				
+				$value['goods'] = $query->from('product_flat')->where(['category'=>[0=>"$value[_id]"]])->limit(4)->all();
+			}
+			
+			// 查看banner数据
+			$data['banner'] = Yii::$app->db->createCommand('SELECT * FROM banner where type=2 order by sort desc')->queryAll();
+			
+
+			return $data;
+		}
     public function actionProduct()
     {
         if(Yii::$app->request->getMethod() === 'OPTIONS'){

@@ -101,8 +101,125 @@ class CategoryController extends AppserverController
 
         return $behaviors;
     }
-    
-    public function actionIndex(){
+    // 获取分类商品信息
+		
+		public function actionIndex(){
+			// 判断用户请求
+			if(Yii::$app->request->getMethod() === 'OPTIONS'){
+					return [];
+			}
+			
+			$id = $_GET['categoryid'];
+			// 获取分类的基本信息
+			$query = new Query();
+
+			$types = Yii::$app->mongodb->getCollection('category')->findOne(['_id'=>$id]);
+			
+			// 当前分类信息
+			 $data['types']=$types;
+			 
+			// 获取当前页码
+			 
+			$p = isset($_GET['page'])?$_GET['page']:0;
+			$start = $p*10;
+			
+			// 判断
+			$type = isset($_GET['type'])?$_GET['type']:'default';
+				
+			switch($type){
+				
+				// 默认查询 
+				case "default":
+					$order="created_at desc";
+					$order = ['created_at'=>SORT_DESC];
+				break;
+				// 价格升序
+				case "priceasc":
+					$order="special_price SORT_ASC";
+					$order = ['special_price'=>SORT_ASC];
+
+				break;
+				// 价格降序
+				case "pricedesc":
+					$order="special_price SORT_DESC";
+					$order = ['special_price'=>SORT_DESC];
+
+				break;
+				
+				// 销量升序
+				
+				case "saleasc":
+					$order="volume asc";
+					
+					$order = ['volume'=>SORT_ASC];
+				break;
+				
+				// 销量降序
+				
+				case "saledesc":
+					$order="volume desc";
+					$order = ['volume'=>SORT_DESC];
+
+				
+				break;
+				
+				
+			}
+			// 判断级别
+			
+			if($types['level'] == 1){
+				// 查询一级分类对应子类 
+				$data['category'] = $query->from('category')->where(['parent_id'=>$id])->orderBy('created_at desc')->all();
+				
+				// 获取分类下的商品
+				
+				$where['category'][0]=$id;
+				$data["goods"] = $query->from("product_flat")->where($where)->orderBy($order)->offset($start)->limit(10)->all();
+				
+			}else if($types['level'] == 2){
+				// 查询二级分裂相关子类
+				$data['category'] = $query->from('category')->where(['parent_id'=>$types['parent_id']])->orderBy('created_at desc')->all();
+				
+				// 获取分类下的商品
+				$where['category'][1]=$id;
+				$data["goods"] = $query->from("product_flat")->where($where)->orderBy($order)->offset($start)->limit(10)->all();
+			}
+			
+			if($data['goods']){
+				foreach($data['goods'] as &$value){
+					//好评
+					$praises = $query->from("review")->where(["rate_star"=>"4","rate_star"=>"5","product_id"=>$value["_id"]])->count();
+					//所有
+					$all = $query->from("review")->where(["product_id"=>$value["_id"]])->count();
+					if($all>0){
+						$value["praise"] = floor(($praises/$all)*100); 
+					}else{
+						$value["praise"] = -1;
+					}					
+					//本月时间戳
+					// $beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
+					// $endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
+					
+					//月销售连量
+					// $volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$value[_id]['$oid']' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+					
+					// 获取商家信息
+					if ($value['shop_id']) {
+							// 获取商家信息
+							$value['shop']= Yii::$app->db->createCommand("select shop_id,shop_name,shop_logo from shop where shop_id=$value[shop_id]")->queryOne();
+	
+					}
+					// 销量
+					$value['volume']=$value['volume']?$value['volume']:0;
+				}
+			}
+			
+			return $data;
+
+		}
+		
+		
+    public function actionIndex1(){
         
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
             return [];
@@ -151,7 +268,12 @@ class CategoryController extends AppserverController
             'filter_category'   => $this->getFilterCategory(),
             'page_count'        => $page_count,
         ];
+				
+			
         $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+				
+// 		echo "<pre>";
+// 		print_r($reponseData);
 				
 				// return $reponseData['data']['products'];
         $query = new Query();
@@ -166,11 +288,12 @@ class CategoryController extends AppserverController
 						$value["praise"] = -1;
 					}					
 					//本月时间戳
-					$beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
-					$endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
+					// $beginThismonth=mktime(0,0,0,date('m'),1,date('Y'));
+					// $endThismonth=mktime(23,59,59,date('m'),date('t'),date('Y'));
 					
 					//月销售连量
-					$volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$value[_id]['$oid']' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+					// $volume = Yii::$app->db->createCommand("select sum(qty) nums from sales_flat_order_item where product_id='$value[_id]['$oid']' and updated_at>=$beginThismonth and updated_at<$endThismonth")->queryAll();
+					
 					
 					$value[volume] = $volume[nums];
 				}
@@ -548,7 +671,7 @@ class CategoryController extends AppserverController
                 'sku', 'spu', 'name', 'image',
                 'price', 'special_price',
                 'special_from', 'special_to',
-                'url_key', 'score',
+                'url_key', 'score',"volume"
             ];
         $category_query = Yii::$app->getModule('catalog')->params['category_query'];
         if (is_array($category_query['sort'])) {

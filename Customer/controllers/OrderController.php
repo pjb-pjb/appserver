@@ -10,6 +10,7 @@
 namespace fecshop\app\appserver\modules\Customer\controllers;
 
 use fecshop\app\appserver\modules\AppserverTokenController;
+use fecshop\app\appserver\modules\AppserverController;
 use Yii;
 use \Firebase\JWT\JWT;
 
@@ -17,7 +18,7 @@ use \Firebase\JWT\JWT;
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class OrderController extends AppserverTokenController
+class OrderController extends AppserverController
 {
     public $enableCsrfValidation = false ;
     protected $numPerPage = 10;
@@ -25,8 +26,97 @@ class OrderController extends AppserverTokenController
     protected $orderBy;
     protected $customer_id;
     protected $_page = 'p';
+	
+	public function actionIndex(){
+		if(Yii::$app->request->getMethod() === 'OPTIONS'){
+			return [];
+		}
+		
+		// 判断请求是否合法
+		 
+		if($_GET['uid']){
+			
+			// 分页数据
+			$page = isset($_GET['page'])?$_GET['page']:1;
+			$start = ($page)*10;
+			// 请求类型
+			$status = $_GET['type']?$_GET['type']:0;
+			
+			// 查看所有数据 
+			if($status == -1){
+				$sql="select shop.shop_logo,orders.increment_id,orders.order_status,subtotal,customer.firstname,orders.order_id from sales_flat_order orders,customer,shop where shop.shop_id = orders.shop_id and orders.customer_id = customer.id and orders.customer_id = $_GET[uid] order by orders.order_id desc limit $start,10";
+				
+			}else{
+			// 查看对应数据
+				$sql="select shop.shop_logo,orders.increment_id,orders.order_status,orders.subtotal,customer.firstname,orders.order_id from sales_flat_order orders,customer,shop where shop.shop_id = orders.shop_id and orders.customer_id = customer.id and orders.customer_id = $_GET[uid] and orders.order_status = $status order by orders.order_id desc limit $start,10";
+				
+			}
+			
+			// $sql="select orders.*,items.product_id,items.name,items.image from sales_flat_order orders ,sales_flat_order_item items where orders.order_id = items.order_id and orders.customer_id = $_GET['uid'] order by orders.order_id desc";
+			
+
+			// 格式化数据 
+			
+			$res= Yii::$app->db->createCommand($sql)->queryAll();
+			$data=[
+				"code"=>200,
+				"info"=>"数据请求成功",
+				"data"=>$res
+			];
+		}else{
+			// 格式化数据
+			$data=[
+				'code'=>400,
+				"info"=>"数据请求不合法",
+			];
+		}
+		
+		return $data;
+	}
     
-    public function actionIndex()
+	// 查看订单的详细信息
+	public function actionOrderlist(){
+		if(Yii::$app->request->getMethod() === 'OPTIONS'){
+			return [];
+		}
+				
+		// 判断请求是否合法
+		 
+		if($_GET['order_id']){
+			
+			// 查看订单
+			$sql="select orders.* from sales_flat_order orders where orders.order_id = $_GET[order_id]";
+			// 格式化数据 
+			$res= Yii::$app->db->createCommand($sql)->queryOne();
+			// 数据格式化
+			$res['created_at'] = $res['created_at']?date("Y-m-d H:i:s",$res['created_at']):0;
+			$res['updated_at'] = $res['updated_at']?date("Y-m-d H:i:s",$res['updated_at']):0;
+			$res['receipt_at'] = $res['receipt_at']?date("Y-m-d H:i:s",$res['receipt_at']):0;
+			$res['confirm_at'] = $res['confirm_at']?date("Y-m-d H:i:s",$res['confirm_at']):0;
+			$res['evaluate_at'] = $res['evaluate_at']?date("Y-m-d H:i:s",$res['evaluate_at']):0;
+			$res['paypal_order_datetime'] = $res['paypal_order_datetime']?date("Y-m-d H:i:s",$res['paypal_order_datetime']):0;			
+			// 查看订单
+			$sql="select orders.* from sales_flat_order_item orders where orders.order_id = $_GET[order_id]";
+			// 格式化数据 
+			$data= Yii::$app->db->createCommand($sql)->queryAll();
+			// 查看订单下商品 
+			$data=[
+				"code"=>200,
+				"info"=>"数据请求成功",
+				"order"=> $res,
+				"list" =>$data
+			];
+		}else{
+			// 格式化数据
+			$data=[
+				'code' => 400,
+				"info" => "数据请求不合法",
+			];
+		}
+		
+		return $data;
+	}
+    public function actionIndex1()
     {
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
             return [];
